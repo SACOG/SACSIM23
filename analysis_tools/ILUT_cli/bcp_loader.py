@@ -80,7 +80,7 @@ class BCP():
         self.use_char_dtype = '-c'
         
         
-    def dbf_to_csv(self, dbf_in,outcsv):
+    def dbf_to_csv(self, dbf_in, outcsv):
         """Export from DBF to CSV for large files"""
         table = DBF(dbf_in)
     

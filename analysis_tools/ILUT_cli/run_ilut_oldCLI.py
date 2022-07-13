@@ -8,35 +8,24 @@ import os
 import csv
 
 from dbfread import DBF
-from arcpy import GetParameterAsText, AddMessage
+# import arcpy
  
 from bcp_loader import BCP # bcp_loader script must be in same folder as this script to import it
 from MakeCombinedILUT import ILUTReport
                 
-gis_interface = True
 
 if __name__ == '__main__':
     
     #===============PARAMETERS SET AT EACH RUN========================
-    if gis_interface:
-        model_run_folder = GetParameterAsText(0) # r'D:\SACSIM19\MTP2020\Conformity_Runs\run_2035_MTIP_Amd1_Baseline_v1'
-        scenario_year = int(GetParameterAsText(1)) # 2035
-        scenario_id = int(GetParameterAsText(2)) # 999
-        av_tnc = GetParameterAsText(3) # whether AVs or TNCs are assumed to be operating
-        scenario_desc = GetParameterAsText(4) # string description of the scenario
-        run_ilut_combine = GetParameterAsText(5) # boolean
-        remove_input_tables = GetParameterAsText(6) # boolean; indicate if you want to only keep the resulting "ilut combined" table
-        shared_externally = GetParameterAsText(7) # boolean; indicate if the run is shared externally and needs to be saved/archived (e.g. MTIP amendment, MTP run)
-
-    else:
-        model_run_folder = input("Enter model run folder path: ")# r'D:\SACSIM19\MTP2020\Conformity_Runs\run_2035_MTIP_Amd1_Baseline_v1'
-        scenario_year = int(input("Enter scenario year: ")) # 2035
-        scenario_id = int(input("Enter scenario ID number: ")) # 999
-        av_tnc = None # will be set later via user prompt in CLI interface
-        scenario_desc = None # will be set later via user prompt in CLI interface
-        run_ilut_combine = input("Do you want to run ILUT Combine script after loading tables (enter 'true' or 'false')? ")
-        remove_input_tables = input("Do you want to remove raw input tables after creating final combined ILUT table (enter 'true' or 'false')? ")
-        shared_externally = input("Will this run be shared externally (enter 'true' or 'false')? ") # boolean; indicate if the run is shared externally and needs to be saved/archived (e.g. MTIP amendment, MTP run)        
+    # print("Welcome to the SACSIM Integrated Land Use Transportation (ILUT) processor.\n" \
+    #       "To run the ILUT process, please follow the prompts below:\n")
+    
+    model_run_folder = input("Enter model run folder path: ")# r'D:\SACSIM19\MTP2020\Conformity_Runs\run_2035_MTIP_Amd1_Baseline_v1'
+    scenario_year = int(input("Enter scenario year: ")) # 2035
+    scenario_id = int(input("Enter scenario ID number: ")) # 999
+    run_ilut_combine = input("Do you want to run ILUT Combine script after loading tables (enter 'true' or 'false')? ")
+    remove_input_tables = input("Do you want to remove raw input tables after creating final combined ILUT table (enter 'true' or 'false')? ")
+    shared_externally = input("Will this run be shared externally (enter 'true' or 'false')? ") # boolean; indicate if the run is shared externally and needs to be saved/archived (e.g. MTIP amendment, MTP run)
 
     #=============SELDOM-CHANGED PARAMETERS==========================
     # folder containing query files used to create tables
@@ -161,7 +150,7 @@ if __name__ == '__main__':
         comb_rpt = ILUTReport(model_run_dir=model_run_folder, dbname=ilut_db_name, sc_yr=scenario_year, 
                               sc_code=scenario_id, envision_tomorrow_tbl=eto_tbl,
                               pop_table=popn_tbl, taz_rad_tbl=taz_tbl, master_pcl_tbl=master_parcel_table,
-                              av_tnc_type=av_tnc, sc_desc=scenario_desc, shared_ext=shared_externally)
+                              av_tnc_type=None, sc_desc=None, shared_ext=shared_externally)
 
         if comb_rpt.shared_externally():
             raise Exception(f"An ILUT table for year {scenario_year} and scenario ID {scenario_id} already exists in SQL Server " \
@@ -169,14 +158,13 @@ if __name__ == '__main__':
                 " different scenario ID.")
     else:
         pass
-        AddMessage("Loading model output tables but will NOT run ILUT combination process...\n")
+        print("Loading model output tables but will NOT run ILUT combination process...\n")
     
     # change workspace to model run folder
     os.chdir(model_run_folder)
     
     tbl_loader = BCP(svr_name=sql_server_name, db_name=ilut_db_name)
-
-    AddMessage("Loading model output files into SQL Server database...")
+   
     for tblspec in ilut_tbl_specs:
         if tblspec[k_load_tbl]:
             sql_tname = f"{tblspec[k_sql_tbl_name]}{scenario_year}_{scenario_id}"
@@ -192,13 +180,13 @@ if __name__ == '__main__':
             tbl_loader.create_sql_table_from_file(input_file, formatted_sql, sql_tname,
                                               overwrite=True, data_start_row=startrow)
         else:
-            AddMessage(f"Skipping loading of {tblspec[k_sql_tbl_name]} table...")
+            print(f"Skipping loading of {tblspec[k_sql_tbl_name]} table...")
             continue
 
-    AddMessage("All tables successfully loaded!\n")
+    print("All tables successfully loaded!\n")
     
     if run_ilut_combine:
-        AddMessage("Starting ILUT combining/aggregation process...\n")
+        print("Starting ILUT combining/aggregation process...\n")
         comb_rpt.run_report(delete_input_tables=remove_input_tables)
     
 

@@ -17,7 +17,7 @@ import sys
 import time
 from pathlib import Path
 
-from arcpy import AddMessage
+# import arcpy
 import pyodbc
 
 
@@ -116,12 +116,6 @@ class ILUTReport():
             av_tnc_lookup = {'1':self.avtnc_nn, '2':self.avtnc_ny, '3':self.avtnc_yy}
 
             self.av_tnc_type = av_tnc_lookup[user_tnc_entry]
-
-        # old version in GIS interface issue; hopefully don't have to keep this around
-        # if av_tnc_type:
-        #     self.av_tnc_type = av_tnc_type
-        # else: 
-        #     self.av_tnc_type = input(f"Enter '{self.avtnc_nn}', '{self.avtnc_ny}', '{self.avtnc_yy}': ")
                 
         # additional scenario description
         if sc_desc:
@@ -183,7 +177,7 @@ class ILUTReport():
         '''Runs SQL file. params_list contains any formatters used in the SQL 
         file (e.g. to specify which table names to use in the SQL command).'''
         
-        AddMessage("Running {}...".format(sql_file))
+        print("Running {}...".format(sql_file))
         conn = pyodbc.connect(self.conxn_info)
         conn.autocommit = True
         with open(os.path.join(self.sql_dir, sql_file),'r') as in_sql:
@@ -246,10 +240,10 @@ class ILUTReport():
             valid_tbl_name = self.check_if_table_exists(tbl_name)
             if valid_tbl_name:
                 break
-                AddMessage(tbl_name)
+                print(tbl_name)
                 
             else:
-                AddMessage("Table {} does not exist. Please try a different table name." \
+                print("Table {} does not exist. Please try a different table name." \
                       .format(tbl_name))
                 continue
         
@@ -276,7 +270,7 @@ class ILUTReport():
                     create_cvixxi_table=True,
                     create_telewk_table=True,
                     create_comb_table=True,
-                    delete_input_tables=True):
+                    delete_input_tables=False):
         
         '''Runs queries to generate parcel-level ILUT table.'''
         
@@ -333,13 +327,14 @@ class ILUTReport():
             self.run_sql(self.telework_sql, telework_params)        
 
 
-        tables_for_combining = [triptour_outtbl, person_outtbl, hh_outtbl, cvixxi_outtbl, telewk_outtbl]
-        tables_existing = [cursor.tables(table=t).fetchone()[2] for t in tables_for_combining \
+        
+        tables_existing = [cursor.tables(table=t).fetchone()[2] for t in \
+                           [triptour_outtbl, person_outtbl, hh_outtbl, cvixxi_outtbl, telewk_outtbl] \
                            if cursor.tables(table=t).fetchone() is not None]
 
         # import pdb; pdb.set_trace()
         if create_comb_table:
-            if len(tables_existing) == len(tables_for_combining): #check that all ilut tables exist before creating combo table
+            if len(tables_existing) == 5: #check that all ilut tables exist before creating combo table
                 col_str_yr = str(self.sc_yr)[-2:] #for columns in ETO table with year suffix in header name
                 comb_outtbl = "ilut_combined{}".format(self.scenario_extn)
                 comb_params = [self.master_parcel_table, raw_parcel, hh_outtbl, 
@@ -354,7 +349,7 @@ class ILUTReport():
                 # av_tnc_desc = self.avmode_dict[self.av_tnc_type][0]
                 self.log_run(self.av_tnc_type)
             else:
-                AddMessage("Not all input ILUT tables exist. Make sure all theme ILUT tables exist then re-run.")
+                print("Not all input ILUT tables exist. Make sure all theme ILUT tables exist then re-run.")
                 sys.exit()
 
             if delete_input_tables:
@@ -365,7 +360,7 @@ class ILUTReport():
         cursor.close()
         conn.close()
         elapsed_time = round((time.time() - start_time)/60,1)
-        AddMessage("Success! Elapsed time: {} minutes".format(elapsed_time))
+        print("Success! Elapsed time: {} minutes".format(elapsed_time))
     
 #=========================SCRIPT ENTRY POINT===================================
 
@@ -377,7 +372,7 @@ if __name__ == '__main__':
                  sc_desc='testing')
 
     check_if_exists = report_obj.shared_externally()
-    AddMessage(check_if_exists)
+    print(check_if_exists)
 
     # report_obj.run_report(create_triptour_table = False,
     #                 create_person_table = False,
