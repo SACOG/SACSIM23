@@ -277,11 +277,13 @@ class BCP():
                                  self.use_char_dtype,
                                  '-t', delim_char, # -t <field delimiter char to use>
                                  '-F', str_data_start_row] # -F indicates row data starts on (default = 2nd row if file has headers)
+
         
         # run bcp command
         print(f"loading data from {file_in} into {tbl_name}...")
         try:
-            subprocess.check_output(bcp_new_tbl_from_file)
+            # subprocess.check_output(bcp_new_tbl_from_file) # old version; for sum reason causes cmd window to pop up when running.
+            subprocess.run(bcp_new_tbl_from_file, shell=True)  
             
             # import pdb; pdb.set_trace()
             if dt_cols:
@@ -336,9 +338,9 @@ if __name__ == '__main__':
     #----------------TEST PARAMS---------------------
     data_folder = r"D:\SACSIM19\MTP2020\Conformity_Runs\run_2035_MTIP_Amd1_Baseline_v1"
     test_file_in = os.path.join(data_folder, "_household.tsv" ) # r"P:\NPMRDS data\Raw Downloads\DynamicData_15Min\2020\test_trucks_Dec1_2020_yuba\test_trucks_Dec1_2020_yuba.csv"  # r"P:\NPMRDS data\Python\Data Prep\LoadRawData\samplett.csv"
-    sql_to_run = r"C:\Users\dconly\GitRepos\SACSIM\ILUT Tools\Python\ILUT\BCP table creation queries\create_hh_table.sql"  # r"P:\NPMRDS data\Python\Data Prep\LoadRawData\qry\create_tt_table_no_tstamp.sql"  # r"P:\NPMRDS data\Python\Data Prep\LoadRawData\qry\create_tt_table.sql" # create_tt_table_chartime
+    sql_to_run = r"C:\Users\dconly\GitRepos\SACSIM23\analysis_tools\ILUT_cli\sql_bcp\create_hh_table.sql"  # r"P:\NPMRDS data\Python\Data Prep\LoadRawData\qry\create_tt_table_no_tstamp.sql"  # r"P:\NPMRDS data\Python\Data Prep\LoadRawData\qry\create_tt_table.sql" # create_tt_table_chartime
     data_first_row = 2
-    test_tbl_name = "TEST_load_hh01192020"
+    test_tbl_name = "TEST_load_hh20220715"
     
     # stuff you need if you are loading a table with datetime columns
     tstamp_cols = None # ['measurement_tstamp']

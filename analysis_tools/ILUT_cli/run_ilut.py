@@ -13,7 +13,7 @@ from arcpy import GetParameterAsText, AddMessage
 from bcp_loader import BCP # bcp_loader script must be in same folder as this script to import it
 from MakeCombinedILUT import ILUTReport
                 
-gis_interface = True
+gis_interface = False
 
 if __name__ == '__main__':
     
@@ -189,6 +189,7 @@ if __name__ == '__main__':
                 raw_sql = f_sql_in.read()
                 formatted_sql = raw_sql.format(sql_tname)
         
+            AddMessage(f"\tLoading {input_file}...")
             tbl_loader.create_sql_table_from_file(input_file, formatted_sql, sql_tname,
                                               overwrite=True, data_start_row=startrow)
         else:
