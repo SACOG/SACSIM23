@@ -68,3 +68,10 @@ Microsoft](https://docs.microsoft.com/en-us/sql/tools/bcp-utility?view=sql-serve
 
 *Note -- if this link does not work, simply search for "SQL Server BCP
 utility"*
+
+
+
+## Troubleshooting
+
+* *Problem* - `PermissionError: [Errno 13] Permission denied` may arise when trying to run the ILUT, and will often say that the script doesn't have permission to open a package (e.g. numpy)
+  * *Diagnosing and Workaround* - If you are trying to run the script in the default ArcGIS Pro environment, try making a clone of it, switching to the clone, then running the script in the clone. More information on environments and cloning is available [here](https://github.com/SACOG/SACOG-Intro/blob/b81aa5b47b740d52a381b1e7b33675a0c20bfd12/using-envs/sacog-Python-Env-Reference.md).
