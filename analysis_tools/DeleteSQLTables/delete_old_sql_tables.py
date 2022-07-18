@@ -13,139 +13,164 @@ Purposes:
 import os 
 import pyodbc
 
+    
+def delete_old_tables(**kwargs):
+
+    #=============================top_parameters
+
+    db_conninfo = f"DRIVER={kwargs['db_driver']}; SERVER={kwargs['server']};" \
+        f"DATABASE={kwargs['db_database']}; Trusted_Connection={kwargs['db_trusted_connection']}"
+
+    pref_ilut_comb = 'ilut_combined' # prefix for ilut combined table
+
+    table_status_delall = "deleted all tables"
+    table_status_keepcomb = "deleted raw/theme tables, kept combined table"
+
+    # prefixes for all of the tables you'll delete. Table naming convention is <prefix><year>_<id>
+    table_prefixes = ['raw_person','raw_hh','raw_parcel','raw_trip','raw_tour',
+                'raw_ixxi','raw_cveh','raw_ixworker','ilut_triptour',
+                'ilut_person','ilut_hh','ilut_ixxicveh', pref_ilut_comb]
+
+    #========================== subfunctions within function
+
+    def run_sql(sql_file, params_list):
+        conn = pyodbc.connect(db_conninfo)
+        conn.autocommit = True
+        with open(sql_file,'r') as in_sql:
+            raw_sql = in_sql.read()
+            formatted_sql = raw_sql.format(*params_list)
+            #print(formatted_sql) #uncomment to see query
+            cursor = conn.cursor()
+            cursor.execute(formatted_sql)
+            # =============================================================================
+                    # use this to get rows of data if needed
+            #         rows = cursor.fetchall()
+            #         for row in rows:
+            #             print(row)
+            # =============================================================================
+            cursor.commit()
+            cursor.close()
+        conn.close()
 
 
-def run_sql(sql_file,params_list):
-    conn = pyodbc.connect(conxn_info)
-    conn.autocommit = True
-    with open(sql_file,'r') as in_sql:
-        raw_sql = in_sql.read()
-        formatted_sql = raw_sql.format(*params_list)
-        #print(formatted_sql) #uncomment to see query
+    def shared_externally():
+        '''
+        Checks if the indicated year and scenario ID correspond to an existing run that was
+        shared publicly (e.g. MTIP, MTP, EIR run). If it is shared, do not let the user overwrite
+        the table.
+        '''
+        
+        conn = pyodbc.connect(db_conninfo)
+        conn.autocommit = True
         cursor = conn.cursor()
-        cursor.execute(formatted_sql)
-        # =============================================================================
-                # use this to get rows of data if needed
-        #         rows = cursor.fetchall()
-        #         for row in rows:
-        #             print(row)
-        # =============================================================================
+        
+        sql = f"""
+            SELECT * FROM {kwargs['scenario_log_tbl']}
+            WHERE {kwargs['logtbl_yearfld']} = {kwargs['scenario_year']}  
+                AND {kwargs['logtbl_id_field']} = {kwargs['scenario_id']}  
+                AND {kwargs['logtbl_statfld']} = 'created'
+                AND {kwargs['logtbl_sharefld']} = 1
+            """
+    
+        cursor.execute(sql)
+        results = cursor.fetchall()
+
+        if len(results) > 0:
+            # fields = [i[0] for i in cursor.description]
+            # record = dict(zip(fields, results[0]))
+            # share_flag = record['shared_externally']
+
+            output = True # if share_flag == 1 else False
+        else:
+            output = False
+
+        cursor.close()
+        conn.close()       
+
+        return output
+
+    def update_table_status(status_value):
+        conn = pyodbc.connect(db_conninfo)
+        conn.autocommit = True
+        cursor = conn.cursor()
+
+        
+        sql = f"UPDATE {kwargs['scenario_log_tbl']} SET {kwargs['logtbl_statfld']} = '{status_value}' " \
+            f"WHERE {kwargs['logtbl_yearfld']} = {kwargs['scenario_year']} AND {kwargs['logtbl_id_field']} = {kwargs['scenario_id']}" 
+        
+        cursor.execute(sql)
+        
         cursor.commit()
         cursor.close()
-    conn.close()
+        conn.close()
 
-def shared_externally(scenario_year, scenario_code):
-    '''
-    Checks if the indicated year and scenario ID correspond to an existing run that was
-    shared publicly (e.g. MTIP, MTP, EIR run). If it is shared, do not let the user overwrite
-    the table.
-    '''
-    
-    conn = pyodbc.connect(conxn_info)
-    conn.autocommit = True
-    cursor = conn.cursor()
-    
-    sql = f"""
-        SELECT * FROM {scen_log_tbl}
-        WHERE scenario_year = {scenario_year}
-            AND scenario_code = {scenario_code}
-            AND table_status = 'created'
-        """
-    
-    cursor.execute(sql)
-    results = cursor.fetchall()
+    #========================== rest of function
 
-    if len(results) > 0:
-        fields = [i[0] for i in cursor.description]
-        record = dict(zip(fields, results[0]))
-        share_flag = record['shared_externally']
-
-        output = True if share_flag == 1 else False
-    else:
-        output = False
-
-    cursor.close()
-    conn.close()       
-
-    return output
-    
-def update_table_status(log_table, status_column, status_value, year, sc_id):
-    conn = pyodbc.connect(conxn_info)
-    conn.autocommit = True
-    cursor = conn.cursor()
-        
-    year_column = 'scenario_year'
-    sc_id_col = 'scenario_code'
-    
-    sql = "UPDATE {} SET {} = '{}' WHERE {} = {} AND {} = {}" \
-            .format(log_table, status_column, status_value, year_column, year, sc_id_col, sc_id)
-    
-    cursor.execute(sql)
-    
-    cursor.commit()
-    cursor.close()
-    conn.close()
-    
-def delete_old_tables(sc_yr,sc_id,drop_comb):
-
-    is_shared_externally = shared_externally(sc_yr, sc_id)
+    is_shared_externally = shared_externally()
 
     if is_shared_externally:
-        msg = f"ILUT for year {sc_yr} with ID {sc_id} is an externally-shared run and cannot be removed with this script. Removal" \
-            " can only happen manually in SQL Server."
+        msg = f"ILUT for year {kwargs['scenario_year']} with ID {kwargs['scenario_id']} is an externally-shared run " \
+            "and cannot be removed with this script. Removal can only happen manually in SQL Server."
         print(msg)
         pass
 
     else:
         #option to include combined output tables.
-        table_prefixes = ['raw_person','raw_hh','raw_parcel','raw_trip','raw_tour',
-                        'raw_ixxi','raw_cveh','raw_ixworker','ilut_triptour',
-                        'ilut_person','ilut_hh','ilut_ixxicveh','ilut_combined']
 
-        if drop_comb.lower() == 'y':
-            tables = ["{}{}_{}".format(prefix,sc_yr,sc_id) for prefix in table_prefixes]
-            update_table_status(scen_log_tbl, 'table_status', table_status_delall, sc_yr, sc_id)
-        elif drop_comb.lower() == 'n':
-            tbl_prefixes_nocomb = ['na' if prefix == 'ilut_combined' \
+        if kwargs['drop_combined_yn'].lower() == 'y':
+            tables = [f"{prefix}{kwargs['scenario_year']}_{kwargs['scenario_id']}" for prefix in table_prefixes]
+            update_table_status(table_status_delall)
+        elif kwargs['drop_combined_yn'].lower() == 'n':
+            tbl_prefixes_nocomb = ['na' if prefix == pref_ilut_comb \
                                 else prefix for prefix in table_prefixes]
-            tables = ["{}{}_{}".format(prefix,sc_yr,sc_id) \
-                    for prefix in tbl_prefixes_nocomb]
-            update_table_status(scen_log_tbl, 'table_status', table_status_keepcomb, sc_yr, sc_id)
+
+            tables = [f"{prefix}{kwargs['scenario_year']}_{kwargs['scenario_id']}" for prefix in tbl_prefixes_nocomb]
+            update_table_status(table_status_keepcomb)
         else:
             quit()
     
-        run_sql(drop_table_sql,tables)
-        print("Deleted tables for year {}, scenario {}".format(sc_yr, sc_id))
+        run_sql(kwargs['drop_tbl_sql'], tables)
+        print("Deleted tables for year {}, scenario {}".format(kwargs['scenario_year'], kwargs['scenario_id']))
     
     
 #============================MAIN SCRIPT=======================================
 
 
 if __name__ == '__main__':
-    # Database connection
-    driver = '{SQL Server}'
-    server = 'SQL-SVR'
+    #==========NORMAL INPUT PARAMETERS=====================
     database = 'MTP2024'
-    trusted_connection = 'yes'
-    conxn_info = "DRIVER={0}; SERVER={1}; DATABASE={2}; Trusted_Connection={3}".format(driver, server, database, trusted_connection)
+
+    year = 2016 # year you want to delete select tables from 
     
-    scen_log_tbl = "ilut_scenario_log" #logs each run made and asks user for scenario description
-    table_status_delall = "deleted all tables"
-    table_status_keepcomb = "deleted raw/theme tables, kept combined table"
+    # list of scenario IDs from within year that you want to delete
+    scenario_ids = [9995]
+
+    #============PARAMETERS NOT CHANGED VERY OFTEN===========
     
-    #sql script directory
+    #sql script path
     os.chdir(os.path.dirname(__file__))
-    
-    drop_table_sql = 'delete_old_tablesSQL.sql'
-    
-    year = 2035
-    scenario_ids = [9993]
-    
+
     drop_comb = input("Deleting year {}, scenarios {}. Also drop combined output tables too (y/n)? ".format(year,scenario_ids))
     
-    
-    for sc_id in scenario_ids:
-        delete_old_tables(year,sc_id,drop_comb) 
+    for scen_id in scenario_ids:
+        delete_table_argdict = dict(
+                scenario_year = year,
+                scenario_id = scen_id,
+                drop_combined_yn = drop_comb,
+                db_database = database,
+                db_driver = '{SQL Server}',
+                server = 'SQL-SVR',
+                db_trusted_connection = 'yes',
+                scenario_log_tbl = "ilut_scenario_log",
+                drop_tbl_sql = 'delete_old_tablesSQL.sql',
+                logtbl_statfld = 'table_status',
+                logtbl_yearfld = 'scenario_year',
+                logtbl_id_field = 'scenario_code',
+                logtbl_sharefld = 'shared_externally'
+                )      
+
+
+        delete_old_tables(**delete_table_argdict) 
         
     print("--"*20)
     print("Finished. Note that raw population and Envision Tomorrow parcel files will require manual removal.")
