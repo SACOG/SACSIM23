@@ -76,10 +76,6 @@ def delete_old_tables(**kwargs):
         results = cursor.fetchall()
 
         if len(results) > 0:
-            # fields = [i[0] for i in cursor.description]
-            # record = dict(zip(fields, results[0]))
-            # share_flag = record['shared_externally']
-
             output = True # if share_flag == 1 else False
         else:
             output = False
@@ -96,7 +92,8 @@ def delete_old_tables(**kwargs):
 
         
         sql = f"UPDATE {kwargs['scenario_log_tbl']} SET {kwargs['logtbl_statfld']} = '{status_value}' " \
-            f"WHERE {kwargs['logtbl_yearfld']} = {kwargs['scenario_year']} AND {kwargs['logtbl_id_field']} = {kwargs['scenario_id']}" 
+            f"WHERE {kwargs['logtbl_yearfld']} = {kwargs['scenario_year']} " \
+            f"AND {kwargs['logtbl_id_field']} = {kwargs['scenario_id']}" 
         
         cursor.execute(sql)
         
@@ -141,7 +138,7 @@ if __name__ == '__main__':
     database = 'MTP2024'
 
     year = 2016 # year you want to delete select tables from 
-    
+
     # list of scenario IDs from within year that you want to delete
     scenario_ids = [9995]
 
@@ -150,7 +147,7 @@ if __name__ == '__main__':
     #sql script path
     os.chdir(os.path.dirname(__file__))
 
-    drop_comb = input("Deleting year {}, scenarios {}. Also drop combined output tables too (y/n)? ".format(year,scenario_ids))
+    drop_comb = input(f"Deleting year {year}, scenarios {scenario_ids}. Also drop combined output tables too (y/n)? ")
     
     for scen_id in scenario_ids:
         delete_table_argdict = dict(
