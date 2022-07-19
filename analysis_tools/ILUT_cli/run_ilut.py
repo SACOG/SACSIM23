@@ -5,9 +5,7 @@ into Integrated Land Use Transportation (ILUT) parcel table
 """
 
 import os
-import csv
 
-from dbfread import DBF
 from arcpy import GetParameterAsText, AddMessage
  
 from bcp_loader import BCP # bcp_loader script must be in same folder as this script to import it
@@ -24,10 +22,11 @@ if __name__ == '__main__':
         scenario_id = int(GetParameterAsText(2)) # 999
         av_tnc = GetParameterAsText(3) # whether AVs or TNCs are assumed to be operating
         scenario_desc = GetParameterAsText(4) # string description of the scenario
-        run_ilut_combine = GetParameterAsText(5) # boolean
-        remove_input_tables = GetParameterAsText(6) # boolean; indicate if you want to only keep the resulting "ilut combined" table
-        shared_externally = GetParameterAsText(7) # boolean; indicate if the run is shared externally and needs to be saved/archived (e.g. MTIP amendment, MTP run)
-
+        author_initials = GetParameterAsText(5) # so we know who ran the tool
+        run_ilut_combine = GetParameterAsText(6) # boolean
+        remove_input_tables = GetParameterAsText(7) # boolean; indicate if you want to only keep the resulting "ilut combined" table
+        shared_externally = GetParameterAsText(8) # boolean; indicate if the run is shared externally and needs to be saved/archived (e.g. MTIP amendment, MTP run)
+        
     else:
         model_run_folder = input("Enter model run folder path: ")# r'D:\SACSIM19\MTP2020\Conformity_Runs\run_2035_MTIP_Amd1_Baseline_v1'
         scenario_year = int(input("Enter scenario year: ")) # 2035
@@ -36,7 +35,8 @@ if __name__ == '__main__':
         scenario_desc = None # will be set later via user prompt in CLI interface
         run_ilut_combine = input("Do you want to run ILUT Combine script after loading tables (enter 'true' or 'false')? ")
         remove_input_tables = input("Do you want to remove raw input tables after creating final combined ILUT table (enter 'true' or 'false')? ")
-        shared_externally = input("Will this run be shared externally (enter 'true' or 'false')? ") # boolean; indicate if the run is shared externally and needs to be saved/archived (e.g. MTIP amendment, MTP run)        
+        shared_externally = input("Will this run be shared externally (enter 'true' or 'false')? ") # boolean; indicate if the run is shared externally and needs to be saved/archived (e.g. MTIP amendment, MTP run)
+        author_initials = input("Enter your initials (5 characters max): ") # so we know who ran the tool
 
     #=============SELDOM-CHANGED PARAMETERS==========================
     # folder containing query files used to create tables
@@ -150,6 +150,23 @@ if __name__ == '__main__':
                      ]
     
     #======================RUN SCRIPT=================================
+
+    # Ensure initials entered correctly
+    auth_initials_wrong = len(author_initials) > 5 or len(author_initials) == ''
+    wrong_len_msg = "You must enter 1-5 characters for initials. Please re-enter:"
+    if gis_interface: # should be settable in GIS interface parameters.
+        if auth_initials_wrong:
+            raise Exception(wrong_len_msg)
+            import sys; sys.exit()
+    else:
+        while True:
+            if len(author_initials) > 5 or len(author_initials) == '':
+                author_initials = input(wrong_len_msg)
+                continue
+            else:
+                break
+
+    author_initials = author_initials.upper()
     
     # create instance of ILUT combiner report; in so doing, ask for additional info required to do
     # the ILUT aggregation once the tables have loaded. By having this here, before the loading,
@@ -161,7 +178,8 @@ if __name__ == '__main__':
         comb_rpt = ILUTReport(model_run_dir=model_run_folder, dbname=ilut_db_name, sc_yr=scenario_year, 
                               sc_code=scenario_id, envision_tomorrow_tbl=eto_tbl,
                               pop_table=popn_tbl, taz_rad_tbl=taz_tbl, master_pcl_tbl=master_parcel_table,
-                              av_tnc_type=av_tnc, sc_desc=scenario_desc, shared_ext=shared_externally)
+                              av_tnc_type=av_tnc, sc_desc=scenario_desc, auth_initials=author_initials,
+                              shared_ext=shared_externally)
 
         if comb_rpt.shared_externally():
             raise Exception(f"An ILUT table for year {scenario_year} and scenario ID {scenario_id} already exists in SQL Server " \

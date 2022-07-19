@@ -27,7 +27,7 @@ class ILUTReport():
 
     def __init__(self, model_run_dir, dbname, envision_tomorrow_tbl=None, pop_table=None, 
                 taz_rad_tbl=None, master_pcl_tbl=None,
-                sc_yr=None, sc_code=None, av_tnc_type=None, sc_desc=None,
+                sc_yr=None, sc_code=None, av_tnc_type=None, sc_desc=None, auth_initials='',
                 shared_ext=False):
         
         # ========parameters that are unlikely to change or are changed rarely======
@@ -132,6 +132,9 @@ class ILUTReport():
         # self.av_tnc_type = int(self.av_tnc_type)
         self.scenario_extn = "{}_{}".format(self.sc_yr, self.sc_code)
 
+        # author initials (author = person who does the ILUT run)
+        self.auth_initials = auth_initials
+
         # 1/0 flag indicator if run is shared externally (e.g. for EIR, MTP, MTIP amendment, etc.)
         self.shared_ext = int(shared_ext) # convert True/False to 1/0 value
         
@@ -230,7 +233,7 @@ class ILUTReport():
             INSERT INTO {self.scen_log_tbl} VALUES (
             {self.sc_yr}, {self.sc_code}, '{sc_desc_fmt}', GETDATE(), 
             '{av_tnc_flag}', '{default_tbl_status}', '{run_folder}',
-            {self.shared_ext})
+            {self.shared_ext}, '{self.auth_initials}')
             """
         
         cursor.execute(sql)
