@@ -10,7 +10,7 @@
 
 ## Version Info
 
-Last update: Feb 2021
+Last update: July 2022
 
 ## What is the ILUT Tool?
 The integrated land-use transportation (ILUT) tool takes in raw model input and output files and generates an output table that provides wide array of transportation and land use information for each parcel in the SACOG region. Among the dozens of variables, the resulting ILUT table provides the following information for each parcel::
