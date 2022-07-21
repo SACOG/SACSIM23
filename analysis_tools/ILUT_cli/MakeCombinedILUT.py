@@ -27,8 +27,7 @@ class ILUTReport():
 
     def __init__(self, model_run_dir, dbname, envision_tomorrow_tbl=None, pop_table=None, 
                 taz_rad_tbl=None, master_pcl_tbl=None,
-                sc_yr=None, sc_code=None, av_tnc_type=None, sc_desc=None, auth_initials='',
-                shared_ext=False):
+                sc_yr=None, sc_code=None, av_tnc_type=None, sc_desc=None, shared_ext=False):
         
         # ========parameters that are unlikely to change or are changed rarely======
         self.driver = '{SQL Server}'
@@ -44,10 +43,11 @@ class ILUTReport():
         self.sql_dir = os.path.abspath("sql_ilut_summary")
         
         #Tables that don't come from model-run folder
-        self.master_parcel_table = master_pcl_tbl
-        self.taz_rad_table = taz_rad_tbl
-        self.envision_tomorrow_tbl = envision_tomorrow_tbl
-        self.pop_table = pop_table
+        self.master_parcel_table = self.update_input_tbl(master_pcl_tbl, "Master parcel table")
+        self.taz_rad_table = self.update_input_tbl(taz_rad_tbl, "TAZ-RAD table")
+        self.envision_tomorrow_tbl = self.update_input_tbl(envision_tomorrow_tbl, \
+            "Envision Tomorrow parcel table")
+        self.pop_table = self.update_input_tbl(pop_table, "Population table")
         
         # Specify theme table queries to execute
         self.person_sql = "theme_person.sql"
@@ -77,23 +77,6 @@ class ILUTReport():
         
         # model run folder
         self.model_run_dir = model_run_dir
-
-        # confirm that needed input tables are in the database
-        tbls_to_check = {self.envision_tomorrow_tbl: "Envision Tomorrow parcel table",
-                        self.pop_table: "Population table", 
-                        self.taz_rad_table: "TAZ-RAD table", 
-                        self.master_parcel_table: "Master parcel table"}
-
-        for tblname, tbl_desc in tbls_to_check.items():
-            if tblname:
-                if self.check_if_table_exists(tblname):
-                    continue # if user specified a table, and the table is in the db, then all good and you can move on to check next table
-                else: # if the user-specified table isn't found, let them know and give a chance to re-enter manually.
-                    self.conditional_table_entry(f"Table {tblname} not found in database {self.database}. " \
-                                                "Please manually enter name or press ctrl+c to exit")
-            else: # if a table wasn't specified ahead of time, have user specify it.
-                tblname = self.conditional_table_entry(f"Specify table you are using for {tbl_desc} or press ctrl+c to exit")
-
             
         # scenario year
         if sc_yr:
@@ -116,12 +99,6 @@ class ILUTReport():
             av_tnc_lookup = {'1':self.avtnc_nn, '2':self.avtnc_ny, '3':self.avtnc_yy}
 
             self.av_tnc_type = av_tnc_lookup[user_tnc_entry]
-
-        # old version in GIS interface issue; hopefully don't have to keep this around
-        # if av_tnc_type:
-        #     self.av_tnc_type = av_tnc_type
-        # else: 
-        #     self.av_tnc_type = input(f"Enter '{self.avtnc_nn}', '{self.avtnc_ny}', '{self.avtnc_yy}': ")
                 
         # additional scenario description
         if sc_desc:
@@ -132,12 +109,21 @@ class ILUTReport():
         # self.av_tnc_type = int(self.av_tnc_type)
         self.scenario_extn = "{}_{}".format(self.sc_yr, self.sc_code)
 
-        # author initials (author = person who does the ILUT run)
-        self.auth_initials = auth_initials
-
         # 1/0 flag indicator if run is shared externally (e.g. for EIR, MTP, MTIP amendment, etc.)
         self.shared_ext = int(shared_ext) # convert True/False to 1/0 value
         
+    def update_input_tbl(self, tblname, tbl_desc):
+        """Checks if table in database, then if not in db, has user manually specify table name."""
+        if tblname:
+            if self.check_if_table_exists(tblname):
+                out_tblname = tblname # if user specified a table, and the table is in the db, then all good and you can move on to check next table
+            else: # if the user-specified table isn't found, let them know and give a chance to re-enter manually.
+                out_tblname = self.conditional_table_entry(f"Table {tblname} not found in database {self.database}. " \
+                                            "Please manually enter name or press ctrl+c to exit")
+        else: # if a table wasn't specified ahead of time, have user specify it.
+            out_tblname = self.conditional_table_entry(f"Specify table you are using for {tbl_desc} or press ctrl+c to exit")
+        
+        return out_tblname
 
     def check_if_table_exists(self, table_name):
         '''Returns true/false value of whether a given table exists in database'''
@@ -224,6 +210,7 @@ class ILUTReport():
         conn = pyodbc.connect(self.conxn_info)
         conn.autocommit = True
         cursor = conn.cursor()
+        self.username = os.getlogin()
         
         sc_desc_fmt = r'{}'.format(self.sc_desc) #gets rid of pesky unicode escape errors if description has \N, \t, etc.
         default_tbl_status = "created"
@@ -233,7 +220,7 @@ class ILUTReport():
             INSERT INTO {self.scen_log_tbl} VALUES (
             {self.sc_yr}, {self.sc_code}, '{sc_desc_fmt}', GETDATE(), 
             '{av_tnc_flag}', '{default_tbl_status}', '{run_folder}',
-            {self.shared_ext}, '{self.auth_initials}')
+            {self.shared_ext}, '{self.username}')
             """
         
         cursor.execute(sql)
@@ -245,12 +232,11 @@ class ILUTReport():
         '''If user needs to specify a table that already exists, this makes sure
         they specify a valid table name'''
         while True:
-            tbl_name = input(f"{input_prompt}: ")  # Enter future parcel/ETO table name
+            tbl_name = input(f"{input_prompt}: ")
             valid_tbl_name = self.check_if_table_exists(tbl_name)
             if valid_tbl_name:
-                break
                 AddMessage(tbl_name)
-                
+                break
             else:
                 AddMessage("Table {} does not exist. Please try a different table name." \
                       .format(tbl_name))
@@ -335,12 +321,12 @@ class ILUTReport():
             telework_params = [raw_trip, raw_personday, raw_person, raw_hh, telewk_outtbl]
             self.run_sql(self.telework_sql, telework_params)        
 
-
+        # import pdb; pdb.set_trace()
         tables_for_combining = [triptour_outtbl, person_outtbl, hh_outtbl, cvixxi_outtbl, telewk_outtbl]
         tables_existing = [cursor.tables(table=t).fetchone()[2] for t in tables_for_combining \
                            if cursor.tables(table=t).fetchone() is not None]
 
-        # import pdb; pdb.set_trace()
+        
         if create_comb_table:
             if len(tables_existing) == len(tables_for_combining): #check that all ilut tables exist before creating combo table
                 col_str_yr = str(self.sc_yr)[-2:] #for columns in ETO table with year suffix in header name
