@@ -21,7 +21,6 @@ import arcpy
 
 arcpy.env.overwriteOutput = True
 
-from netpyconvert import netpyconvert as npc
 
 #=============================FUNCTIONS==========================================
 class LinesNodes:
@@ -41,7 +40,6 @@ class LinesNodes:
 
         self.f_linename = 'LINE NAME'
         self.linename_gis = 'LINE_NAME'
-        self.longname = 'LONGNAME'
         self.mode = 'MODE'
         self.color = 'COLOR'
         self.oneway = 'ONEWAY'
@@ -62,13 +60,12 @@ class LinesNodes:
         self.headway5 = 'HEADWAY[5]'
 
 
-        self.line_attrs = [self.f_linename, self.longname, 
-                           self.tf1, self.tf2, self.tf3, self.tf4, self.tf5,
+        self.line_attrs = [self.f_linename, self.tf1, self.tf2, self.tf3, self.tf4, self.tf5,
                          self.oneway, self.mode, self.faresystem, self.operator,
                          self.color, self.circular, self.headway1, self.headway2,
                          self.headway3, self.headway4, self.headway5]
 
-        self.line_attrs_outorder = [self.f_linename, self.longname, self.oneway, self.mode, self.faresystem, 
+        self.line_attrs_outorder = [self.f_linename, self.oneway, self.mode, self.faresystem, 
                                 self.operator, self.color, self.circular, self.tf1, self.tf2, self.tf3, 
                                 self.tf4, self.tf5, self.headway1, self.headway2, self.headway3, 
                                 self.headway4, self.headway5]
@@ -81,7 +78,7 @@ class LinesNodes:
         
 
                 
-        self.data_rows = self.make_link_node_outputs()
+        self.data_rows = self.make_link_node_outputs(in_txt)
         self.line_rows_dict = self.data_rows[0] # each row contains line-level data {line attr name: attr value}
         self.line_rows_vals = [list(d.values()) for d in self.line_rows_dict] # each row is just list of attr values for each line
         self.node_rows = self.data_rows[1] # each row contains data for each node on each line
@@ -203,7 +200,7 @@ class LinesNodes:
             
         return out
 
-    def make_link_node_outputs(self):
+    def make_link_node_outputs(self, in_file):
         try:
             print("Writing out line and node lists...")
             
@@ -322,7 +319,7 @@ class GISOutput:
         self.output_dir = output_dir # for now must be a GDB; in future should allow using folder (for SHP/DBF export too)
         
         # output file names
-        self.date_sufx = str(dt.datetime.now().strftime('%Y%m%d_%H%M'))
+        self.date_sufx = str(dt.datetime.now().strftime('%m%d%Y_%H%M'))
         self.str_scen_yr = str_scen_yr
         self.link_tbl = "PT_link{}_{}".format(self.str_scen_yr, self.date_sufx)
         self.node_tbl = "PT_node{}_{}".format(self.str_scen_yr, self.date_sufx)
@@ -350,8 +347,8 @@ class GISOutput:
         
         arcpy.CreateTable_management(self.output_dir, self.link_tbl,"","")
 
-        arcpy.AddField_management(link_tbl_fpath, self.format_gis_fname(self.line_node_data.linename_gis), "TEXT", field_length=20)
-        arcpy.AddField_management(link_tbl_fpath, self.format_gis_fname(self.line_node_data.longname), "TEXT", field_length=30)
+        arcpy.AddField_management(link_tbl_fpath, self.line_node_data.linename_gis, "TEXT", field_length=20)
+        # arcpy.AddField_management(link_tbl_fpath,"TIMEFAC", "TEXT", field_length=5)
         arcpy.AddField_management(link_tbl_fpath, self.line_node_data.oneway, "TEXT", field_length=2)
         arcpy.AddField_management(link_tbl_fpath, self.line_node_data.mode, "SHORT")
         arcpy.AddField_management(link_tbl_fpath, self.line_node_data.faresystem, "SHORT")
@@ -361,13 +358,11 @@ class GISOutput:
 
         for tf_field in [self.line_node_data.tf1, self.line_node_data.tf2,
                         self.line_node_data.tf3, self.line_node_data.tf4, self.line_node_data.tf5]:
-            tf_field = self.format_gis_fname(tf_field)
             arcpy.AddField_management(link_tbl_fpath, tf_field, "FLOAT", field_length=5)
 
         for hdwy_field in [self.line_node_data.headway1, self.line_node_data.headway2,
                         self.line_node_data.headway3, self.line_node_data.headway4, 
                         self.line_node_data.headway5]:
-            hdwy_field = self.format_gis_fname(hdwy_field)
             arcpy.AddField_management(link_tbl_fpath, hdwy_field, "SHORT")
         	
         link_fields = [i.name for i in arcpy.ListFields(link_tbl_fpath)]
@@ -394,7 +389,7 @@ class GISOutput:
         node_tbl_fpath = os.path.join(self.output_dir, self.node_tbl) # final output node table
 
         arcpy.CreateTable_management(self.scratch_gdb, temp_nodetbl)
-        arcpy.AddField_management(temp_nodetbl_fpath, self.format_gis_fname(self.line_node_data.f_linename), "TEXT", field_length=20)
+        arcpy.AddField_management(temp_nodetbl_fpath, self.line_node_data.f_linename, "TEXT", field_length=20)
         arcpy.AddField_management(temp_nodetbl_fpath, self.line_node_data.node_long,"LONG")
         arcpy.AddField_management(temp_nodetbl_fpath, self.line_node_data.seqno,"LONG")
         arcpy.AddField_management(temp_nodetbl_fpath, self.line_node_data.stopflag,"TEXT", field_length=2)
@@ -495,32 +490,28 @@ class GISOutput:
             if f in [f.name for f in arcpy.ListFields(output_link_fc_path)]:
                 arcpy.DeleteField_management(output_link_fc_path,[f])
 
-        # cleanup
-        items_to_delete = [temp_line_fc, temp_trannode_fc,
-                           os.path.join(self.output_dir, self.link_tbl),
-                           os.path.join(self.output_dir, self.node_tbl)]
-        for itm in items_to_delete:
-            arcpy.Delete_management(itm)
+        arcpy.Delete_management(temp_line_fc)
+        arcpy.Delete_management(temp_trannode_fc)
         
         print(f"Success! Created line feature class {os.path.join(self.output_dir, self.link_fc)}")
     
 def do_work():
-    tranline_txt = input('Enter file path for transit line txt file: ').strip("\"") # strip gets rid of dbl quotes in string if needed
+    tranline_txt = input('Enter file path for transit line txt file: ')
     output_format = input("Specify desired output format('GDB' or 'text'): ")
+    # tranline_txt = r"Q:\SACSIM23\Network\TransitNetwork\Major Transit Stops\SACSIM23\2022_11\2020_tranline.lin"
+    # output_format = 'gdb'
     
     if output_format.lower() == 'text':
         textOutput(tranline_txt).make_txt()
     elif output_format.lower() == 'gdb':
-        # hwy_node_dbf = input('Enter file path for hwy node *master network* DBF whose X/Y coordinates you will use: ').strip("\"")
-        hwy_net = input('Enter file path for corresponding hwy NET file: ').strip("\"")
-        output_gdb = input("Enter the file path for the ESRI file geodatabase you want your outputs to be in: ").strip("\"")
+        hwy_node_dbf = input('Enter file path for hwy node *master network* DBF whose X/Y coordinates you will use: ')
+        output_gdb = input("Enter the file path for the ESRI file geodatabase you want your outputs to be in: ")
+        # hwy_node_dbf = r"Q:\SACSIM23\Network\TransitNetwork\Major Transit Stops\SACSIM23\2022_11\2020_base_nodes.dbf"
+        # output_gdb = r"Q:\SACSIM23\Network\SM23GIS\SM23Testing.gdb"
 
         sc_yr = input("Enter the scenario year: ")
-        hwy_node_dbf = npc.net2nodedbf(hwy_net, scenario_prefix=sc_yr)
-
-        # eliminate errors that occur when scratch GDB becomes corrupted. This will delete and allow re-creation of it.
-        if arcpy.Exists(arcpy.env.scratchGDB): arcpy.Delete_management(arcpy.env.scratchGDB)
-
+        # sc_yr = '2020'
+        
         gis_obj = GISOutput(tranline_txt, hwy_node_dbf, output_gdb, sc_yr)
         gis_obj.make_line_fc()
     else:

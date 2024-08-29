@@ -129,9 +129,10 @@ def make_trnfile(working_dir, sc_year, line_txt, node_txt):
 
 if __name__ == '__main__':
 
-    working_dir = input('Enter output folder path: ')
-    in_lines = input('Enter file path to LINE attribute table: ')
-    in_nodes = input('Enter file path to NODE attribute table: ')
+    working_dir = input('Enter output folder path: ').strip("\"")
+    in_lines = input('Enter file path to LINE attribute table: ').strip("\"")
+    in_nodes = input('Enter file path to NODE attribute table: ').strip("\"")
+    scenario_year = input('Enter scenario year or prefix: ')
 
     # # hard-coded for testing
     # working_dir = r'D:\SACSIM23\faresystem_change\LIN_updating\transit_linenode_V1'
@@ -139,6 +140,6 @@ if __name__ == '__main__':
     # in_nodes = r"D:\SACSIM23\faresystem_change\LIN_updating\transit_linenode_V1\2016_tranline_original_nodes.txt"
 
 
-    output_lin_path = make_trnfile(working_dir=working_dir, sc_year=2016, line_txt=in_lines, node_txt=in_nodes)
+    output_lin_path = make_trnfile(working_dir=working_dir, sc_year=scenario_year, line_txt=in_lines, node_txt=in_nodes)
     print(f"Success! Output LIN file in {output_lin_path}")
 

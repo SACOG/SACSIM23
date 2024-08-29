@@ -1,0 +1,261 @@
+/*
+[self.master_parcel_table, 0
+raw_parcel, 1-0
+hh_outtbl, 2-1
+person_outtbl, 3-2
+triptour_outtbl, 4-3
+cvixxi_outtbl, 5-4
+self.comb_outtbl, 6-5
+self.envision_tomorrow_tbl, 7-6
+col_str_yr, 8-7
+telewk_outtbl] 9-8
+
+comb_params = [self.envision_tomorrow_tbl=self.envision_tomorrow_tbl, raw_parcel=raw_parcel, 
+                hh_outtbl=hh_outtbl, person_outtbl=person_outtbl, triptour_outtbl=triptour_outtbl,
+                cvixxi_outtbl=cvixxi_outtbl, self.comb_outtbl=self.comb_outtbl, 
+                col_str_yr=col_str_yr, telewk_outtbl=col_str_yr]
+
+*/
+
+
+SET NOCOUNT ON
+
+--Mix index parameters
+DECLARE @WgtEmpTot numeric(23,5) SET @WgtEmpTot = 0.1
+DECLARE @WgtStu numeric(23,5) SET @WgtStu = 0.3
+DECLARE @WgtEmpRet numeric(23,5) SET @WgtEmpRet = 0.3
+DECLARE @WgtEmpSvc numeric(23,5) SET @WgtEmpSvc = 0.3
+
+DECLARE @BetaEmpTot numeric(23,5) SET @BetaEmpTot = 1.211
+DECLARE @BetaStu numeric(23,5) SET @BetaStu = 0.457
+DECLARE @BetaEmpRet numeric(23,5) SET @BetaEmpRet = 0.371
+DECLARE @BetaEmpSvc numeric(23,5) SET @BetaEmpSvc = 0.06 -- USED TO BE 0.126
+
+IF OBJECT_ID('{comb_outtbl}', 'U') IS NOT NULL 
+DROP TABLE {comb_outtbl}; --output combined ILUT table name
+
+SELECT
+	eto.PARCELID,
+	pm.GISAc,
+	pm.XCOORD,
+	pm.YCOORD,
+	eto.COUNTY,
+	eto.JURIS,
+	pm.Block_20,
+	pm.BG_20,
+	pm.BG_10,
+	pm.TRACT_20,
+	pm.GEOID_20,
+	pm.RAD_07,
+	eto.TAZ_21,
+	pm.TAZ_07,
+	eto.ComType3,
+	eto.ComType5,
+	eto.SubComTyp,
+	pm.EJ_21,
+	pm.TPA_20,
+	pm.TPA_50,
+	eto.Opp_area,
+	eto.DU_BO,
+	eto.EMP_BO,
+	eto.PLACETYPE_BO,
+	eto.EMPHBB,
+	eto.DU,
+	eto.LU,
+	CASE WHEN pp.POP_TOT IS NULL THEN 0 ELSE pp.POP_TOT END AS POP_TOT,
+	CASE WHEN pp.POP_HH IS NULL THEN 0 ELSE pp.POP_HH END AS POP_HH,
+	CASE WHEN pp.WKRS_tot IS NULL THEN 0 ELSE pp.WKRS_tot END AS WKRS_tot,
+	CASE WHEN pp.PPTYP1 IS NULL THEN 0 ELSE pp.PPTYP1 END AS PPTYP1,
+	CASE WHEN pp.PPTYP2 IS NULL THEN 0 ELSE pp.PPTYP2 END AS PPTYP2,
+	CASE WHEN pp.PPTYP3 IS NULL THEN 0 ELSE pp.PPTYP3 END AS PPTYP3,
+	CASE WHEN pp.PPTYP4 IS NULL THEN 0 ELSE pp.PPTYP4 END AS PPTYP4,
+	CASE WHEN pp.PPTYP5 IS NULL THEN 0 ELSE pp.PPTYP5 END AS PPTYP5,
+	CASE WHEN pp.PPTYP6 IS NULL THEN 0 ELSE pp.PPTYP6 END AS PPTYP6,
+	CASE WHEN pp.PPTYP7 IS NULL THEN 0 ELSE pp.PPTYP7 END AS PPTYP7,
+	CASE WHEN pp.PPTYP8 IS NULL THEN 0 ELSE pp.PPTYP8 END AS PPTYP8,
+	CASE WHEN pp.PPWHT IS NULL THEN 0 ELSE pp.PPWHT END AS PPWHT,
+	CASE WHEN pp.PPHIS IS NULL THEN 0 ELSE pp.PPHIS END AS PPHIS,
+	CASE WHEN pp.PPBLK IS NULL THEN 0 ELSE pp.PPBLK END AS PPBLK,
+	CASE WHEN pp.PPASN IS NULL THEN 0 ELSE pp.PPASN END AS PPASN,
+	CASE WHEN pp.PPOTH IS NULL THEN 0 ELSE pp.PPOTH END AS PPOTH,
+	CASE WHEN tw.WKR_NO_TELWK IS NULL THEN 0 ELSE tw.WKR_NO_TELWK END AS WKR_NO_TELWK,
+	CASE WHEN tw.WKR_TELWK_PART IS NULL THEN 0 ELSE tw.WKR_TELWK_PART END AS WKR_TELWK_PART,
+	CASE WHEN tw.WKR_TELWK_FULL IS NULL THEN 0 ELSE tw.WKR_TELWK_FULL END AS WKR_TELWK_FULL,
+	CASE WHEN pp.WAH IS NULL THEN 0 ELSE pp.WAH END AS WAH,
+	CASE WHEN pp.WKRS_JOBLOCN IS NULL THEN 0 ELSE pp.WKRS_JOBLOCN END AS WKRS_JOBLOCN,
+	CASE WHEN hh.HH_TOT_P IS NULL THEN 0 ELSE hh.HH_TOT_P END AS HH_TOT_P,
+	CASE WHEN hh.HH_hh IS NULL THEN 0 ELSE hh.HH_hh END AS HH_hh,
+	CASE WHEN hh.HH_INC_1 IS NULL THEN 0 ELSE hh.HH_INC_1 END AS HH_INC_1,
+	CASE WHEN hh.HH_INC_2 IS NULL THEN 0 ELSE hh.HH_INC_2 END AS HH_INC_2,
+	CASE WHEN hh.HH_INC_3 IS NULL THEN 0 ELSE hh.HH_INC_3 END AS HH_INC_3,
+	CASE WHEN hh.HH_INC_4 IS NULL THEN 0 ELSE hh.HH_INC_4 END AS HH_INC_4,
+	CASE WHEN hh.HH_INC_5 IS NULL THEN 0 ELSE hh.HH_INC_5 END AS HH_INC_5,
+	CASE WHEN hh.HH_HD_1 IS NULL THEN 0 ELSE hh.HH_HD_1 END AS HH_HD_1,
+	CASE WHEN hh.HH_HD_2 IS NULL THEN 0 ELSE hh.HH_HD_2 END AS HH_HD_2,
+	CASE WHEN hh.HH_HD_3 IS NULL THEN 0 ELSE hh.HH_HD_3 END AS HH_HD_3,
+	CASE WHEN hh.VEHICLE IS NULL THEN 0 ELSE hh.VEHICLE END AS VEHICLE,
+	CASE WHEN hh.HH_NOVEH IS NULL THEN 0 ELSE hh.HH_NOVEH END AS HH_NOVEH,
+	CASE WHEN hh.VEH_AV IS NULL THEN 0 ELSE hh.VEH_AV END AS VEH_AV,
+	CASE WHEN pcl.stugrd_p IS NULL AND pcl.stuhgh_p IS NULL THEN 0
+		ELSE pcl.stugrd_p + pcl.stuhgh_p END AS ENR_K12,
+	CASE WHEN pcl.stuuni_p IS NULL THEN 0 ELSE pcl.stuuni_p END AS ENR_UNI,
+	CASE WHEN pcl.emptot_p IS NULL THEN 0 ELSE pcl.emptot_p END AS EMPTOT,
+	CASE WHEN pcl.empedu_p IS NULL THEN 0 ELSE pcl.empedu_p END AS EMPEDU,
+	CASE WHEN pcl.empfoo_p IS NULL THEN 0 ELSE pcl.empfoo_p END AS EMPFOOD,
+	CASE WHEN pcl.empgov_p IS NULL THEN 0 ELSE pcl.empgov_p END AS EMPGOV,
+	CASE WHEN pcl.empofc_p IS NULL THEN 0 ELSE pcl.empofc_p END AS EMPOFC,
+	CASE WHEN pcl.empoth_p IS NULL THEN 0 ELSE pcl.empoth_p END AS EMPOTH,
+	CASE WHEN pcl.empret_p IS NULL THEN 0 ELSE pcl.empret_p END AS EMPRET,
+	CASE WHEN pcl.empsvc_p IS NULL THEN 0 ELSE pcl.empsvc_p END AS EMPSVC,
+	CASE WHEN pcl.empmed_p IS NULL THEN 0 ELSE pcl.empmed_p END AS EMPMED,
+	CASE WHEN pcl.empind_p IS NULL THEN 0 ELSE pcl.empind_p END AS EMPIND,
+	CASE WHEN pcl.parkdy_p IS NULL THEN 0 ELSE pcl.parkdy_p END AS DAYPARKS,
+	CASE WHEN pcl.dist_lbus IS NULL THEN -1 ELSE pcl.dist_lbus END AS DIST_BUS,
+	CASE WHEN pcl.dist_lrt IS NULL THEN -1 ELSE pcl.dist_lrt END AS DIST_LRT,
+	CASE
+		WHEN pcl.dist_lbus IS NULL AND pcl.dist_lrt IS NULL THEN -1
+		WHEN pcl.dist_lbus < pcl.dist_lrt THEN pcl.dist_lbus 
+		ELSE pcl.dist_lrt
+		END AS DIST_MIN,
+	CASE WHEN pcl.nodes1_2 IS NULL THEN -1 ELSE pcl.nodes1_2 END AS NODES1H,
+	CASE WHEN pcl.nodes3_2 IS NULL THEN -1 ELSE pcl.nodes3_2 END AS NODES3H,
+	CASE WHEN pcl.nodes4_2 IS NULL THEN -1 ELSE pcl.nodes4_2 END AS NODES4H,
+	CASE WHEN pcl.hh_2 > 0 
+		THEN
+			(@WgtEmpTot * (
+				  (CASE WHEN (pcl.hh_2 * @BetaEmpTot) < pcl.emptot_2 THEN pcl.hh_2 * @BetaEmpTot
+				  ELSE pcl.emptot_2    
+				  END) / (CASE WHEN (pcl.hh_2 * @BetaEmpTot) > pcl.emptot_2 THEN pcl.hh_2 * @BetaEmpTot
+				  ELSE pcl.emptot_2
+				  END)
+				  )
+			) + 
+			(@WgtStu * (
+				   (CASE WHEN (pcl.hh_2 * @BetaStu) < (pcl.stugrd_2 + pcl.stuhgh_2) THEN pcl.hh_2 * @BetaStu
+				   ELSE (pcl.stugrd_2 + pcl.stuhgh_2)
+				   END) / (CASE WHEN (pcl.hh_2 * @BetaStu) > (pcl.stugrd_2 + pcl.stuhgh_2) THEN pcl.hh_2 * @BetaStu
+				   ELSE (pcl.stugrd_2 + pcl.stuhgh_2)
+				   END)
+				   )
+			) + 
+			(@WgtEmpRet * (
+				   (CASE WHEN (pcl.hh_2 * @BetaEmpRet) < pcl.empret_2 THEN pcl.hh_2 * @BetaEmpRet
+				   ELSE pcl.empret_2
+				   END) / (CASE WHEN (pcl.hh_2 * @BetaEmpRet) > pcl.empret_2 THEN pcl.hh_2 * @BetaEmpRet
+				   ELSE pcl.empret_2
+				   END)
+				   )
+			) + 
+			(@WgtEmpSvc * (
+				   (CASE WHEN (pcl.hh_2 * @BetaEmpSvc) < pcl.empsvc_2 THEN pcl.hh_2 * @BetaEmpSvc
+				   ELSE pcl.empsvc_2
+				   END) / (CASE WHEN (pcl.hh_2 * @BetaEmpSvc) > pcl.empsvc_2 THEN pcl.hh_2 * @BetaEmpSvc
+				   ELSE pcl.empsvc_2
+				   END)
+				   )
+			)
+		ELSE -1 -- -1 means parcel did not have any hhs within its half-mile buffer
+		END AS MIXINDEX,
+	CASE WHEN pcl.MIX_DENS IS NULL THEN -1 ELSE pcl.MIX_DENS END AS MIX_DENS,
+	CASE WHEN tt.PT_TOT_RES IS NULL THEN 0 ELSE tt.PT_TOT_RES END AS PT_TOT_RES,
+	CASE WHEN tt.PTO_TOT_RES IS NULL THEN 0 ELSE tt.PTO_TOT_RES END AS PTO_TOT_RES,
+	CASE WHEN tt.VT_TOT_RES IS NULL THEN 0 ELSE tt.VT_TOT_RES END AS VT_TOT_RES,
+	CASE WHEN tt.PT_WRK_RES IS NULL THEN 0 ELSE tt.PT_WRK_RES END AS PT_WRK_RES,
+	CASE WHEN tt.PTO_WRK_RES IS NULL THEN 0 ELSE tt.PTO_WRK_RES END AS PTO_WRK_RES,
+	CASE WHEN tt.VT_WRK_RES IS NULL THEN 0 ELSE tt.VT_WRK_RES END AS VT_WRK_RES,
+	CASE WHEN tt.SOV_TOT_RES IS NULL THEN 0 ELSE tt.SOV_TOT_RES END AS SOV_TOT_RES,
+	CASE WHEN tt.HOV_TOT_RES IS NULL THEN 0 ELSE tt.HOV_TOT_RES END AS HOV_TOT_RES,
+	CASE WHEN tt.TRN_TOT_RES IS NULL THEN 0 ELSE tt.TRN_TOT_RES END AS TRN_TOT_RES,
+	CASE WHEN tt.BIK_TOT_RES IS NULL THEN 0 ELSE tt.BIK_TOT_RES END AS BIK_TOT_RES,
+	CASE WHEN tt.WLK_TOT_RES IS NULL THEN 0 ELSE tt.WLK_TOT_RES END AS WLK_TOT_RES,
+	CASE WHEN tt.SCB_TOT_RES IS NULL THEN 0 ELSE tt.SCB_TOT_RES END AS SCB_TOT_RES,
+	CASE WHEN tt.TNC_TOT_RES IS NULL THEN 0 ELSE tt.TNC_TOT_RES END AS TNC_TOT_RES,
+	CASE WHEN tt.SOV_WRK_RES IS NULL THEN 0 ELSE tt.SOV_WRK_RES END AS SOV_WRK_RES,
+	CASE WHEN tt.HOV_WRK_RES IS NULL THEN 0 ELSE tt.HOV_WRK_RES END AS HOV_WRK_RES,
+	CASE WHEN tt.TRN_WRK_RES IS NULL THEN 0 ELSE tt.TRN_WRK_RES END AS TRN_WRK_RES,
+	CASE WHEN tt.BIK_WRK_RES IS NULL THEN 0 ELSE tt.BIK_WRK_RES END AS BIK_WRK_RES,
+	CASE WHEN tt.WLK_WRK_RES IS NULL THEN 0 ELSE tt.WLK_WRK_RES END AS WLK_WRK_RES,
+	CASE WHEN tt.TNC_WRK_RES IS NULL THEN 0 ELSE tt.TNC_WRK_RES END AS TNC_WRK_RES,
+	CASE WHEN tt.PTOURSOV IS NULL THEN 0 ELSE tt.PTOURSOV END AS PTOURSOV,
+	CASE WHEN tt.PTOURHOV IS NULL THEN 0 ELSE tt.PTOURHOV END AS PTOURHOV,
+	CASE WHEN tt.PTOURTRN IS NULL THEN 0 ELSE tt.PTOURTRN END AS PTOURTRN,
+	CASE WHEN tt.PTOURBIK IS NULL THEN 0 ELSE tt.PTOURBIK END AS PTOURBIK,
+	CASE WHEN tt.PTOURWLK IS NULL THEN 0 ELSE tt.PTOURWLK END AS PTOURWLK,
+	CASE WHEN tt.PTOURSCB IS NULL THEN 0 ELSE tt.PTOURSCB END AS PTOURSCB,
+	CASE WHEN tt.PTOURTNC IS NULL THEN 0 ELSE tt.PTOURTNC END AS PTOURTNC,
+	CASE WHEN tt.WTOURSOV IS NULL THEN 0 ELSE tt.WTOURSOV END AS WTOURSOV,
+	CASE WHEN tt.WTOURHOV IS NULL THEN 0 ELSE tt.WTOURHOV END AS WTOURHOV,
+	CASE WHEN tt.WTOURTRN IS NULL THEN 0 ELSE tt.WTOURTRN END AS WTOURTRN,
+	CASE WHEN tt.WTOURBIK IS NULL THEN 0 ELSE tt.WTOURBIK END AS WTOURBIK,
+	CASE WHEN tt.WTOURWLK IS NULL THEN 0 ELSE tt.WTOURWLK END AS WTOURWLK,
+	CASE WHEN tt.WTOURTNC IS NULL THEN 0 ELSE tt.WTOURTNC END AS WTOURTNC,
+	CASE WHEN tt.II_VMT_RES IS NULL THEN 0 ELSE tt.II_VMT_RES END AS II_VMT_RES,
+	CASE WHEN tt.VMT_WRK_RES IS NULL THEN 0 ELSE tt.VMT_WRK_RES END AS VMT_WRK_RES,
+	CASE WHEN tt.II_CVMT_RES IS NULL THEN 0 ELSE tt.II_CVMT_RES END AS II_CVMT_RES,
+	CASE WHEN tt.CVMT_WRK_RES IS NULL THEN 0 ELSE tt.CVMT_WRK_RES END AS CVMT_WRK_RES,
+	CASE WHEN tt.PHR_TOT_RES IS NULL THEN 0 ELSE tt.PHR_TOT_RES END AS PHR_TOT_RES,
+	CASE WHEN tt.VHR_TOT_RES IS NULL THEN 0 ELSE tt.VHR_TOT_RES END AS VHR_TOT_RES,
+	CASE WHEN tt.PHR_WRK_RES IS NULL THEN 0 ELSE tt.PHR_WRK_RES END AS PHR_WRK_RES,
+	CASE WHEN tt.VHR_WRK_RES IS NULL THEN 0 ELSE tt.VHR_WRK_RES END AS VHR_WRK_RES,
+	CASE WHEN ixcv.IX_VT_RES IS NULL THEN 0 ELSE ixcv.IX_VT_RES END AS IX_VT_RES,
+	CASE WHEN ixcv.IX_VMT_RES IS NULL THEN 0 ELSE ixcv.IX_VMT_RES END AS IX_VMT_RES,
+	CASE WHEN ixcv.IX_CVMT_RES IS NULL THEN 0 ELSE ixcv.IX_CVMT_RES END AS IX_CVMT_RES,
+	CASE WHEN ixcv.IX_VHT_RES IS NULL THEN 0 ELSE ixcv.IX_VHT_RES END AS IX_VHT_RES,
+	CASE WHEN tt.II_VMT_RES IS NULL THEN 0 ELSE tt.II_VMT_RES END
+		+ CASE WHEN ixcv.IX_VMT_RES IS NULL THEN 0 ELSE ixcv.IX_VMT_RES END
+		AS VMT_TOT_RES,
+	CASE WHEN tt.II_CVMT_RES IS NULL THEN 0 ELSE tt.II_CVMT_RES END
+		+ CASE WHEN ixcv.IX_CVMT_RES IS NULL THEN 0 ELSE ixcv.IX_CVMT_RES END
+		AS CVMT_TOT_RES,
+	CASE WHEN ixcv.IX_VT IS NULL THEN 0 ELSE ixcv.IX_VT END AS IX_VT,
+	CASE WHEN ixcv.IX_VMT IS NULL THEN 0 ELSE ixcv.IX_VMT END AS IX_VMT,
+	CASE WHEN ixcv.IX_CVMT IS NULL THEN 0 ELSE ixcv.IX_CVMT END AS IX_CVMT,
+	CASE WHEN ixcv.IX_VHT IS NULL THEN 0 ELSE ixcv.IX_VHT END AS IX_VHT,
+	CASE WHEN ixcv.CV2_VT IS NULL THEN 0 ELSE ixcv.CV2_VT END AS CV2_VT,
+	CASE WHEN ixcv.CV3_VT IS NULL THEN 0 ELSE ixcv.CV3_VT END AS CV3_VT,
+	CASE WHEN ixcv.CV2_VMT IS NULL THEN 0 ELSE ixcv.CV2_VMT END AS CV2_VMT,
+	CASE WHEN ixcv.CV3_VMT IS NULL THEN 0 ELSE ixcv.CV3_VMT END AS CV3_VMT,
+	CASE WHEN ixcv.CV2_CVMT IS NULL THEN 0 ELSE ixcv.CV2_CVMT END AS CV2_CVMT,
+	CASE WHEN ixcv.CV3_CVMT IS NULL THEN 0 ELSE ixcv.CV3_CVMT END AS CV3_CVMT,
+	CASE WHEN ixcv.CV2_VHT IS NULL THEN 0 ELSE ixcv.CV2_VHT END AS CV2_VHT,
+	CASE WHEN ixcv.CV3_VHT IS NULL THEN 0 ELSE ixcv.CV3_VHT END AS CV3_VHT,
+	CASE WHEN tt.JOB_ExWorker IS NULL THEN 0 ELSE tt.JOB_ExWorker END AS JOB_ExWorker,
+	CASE WHEN tt.VMT_wrk_tourend IS NULL THEN 0 ELSE tt.VMT_wrk_tourend END AS VMT_wrk_tourend,
+	CASE WHEN tt.CVMT_wrk_tourend IS NULL THEN 0 ELSE tt.CVMT_wrk_tourend END AS CVMT_wrk_tourend,
+	CASE WHEN tt.VT_wrk_tourend IS NULL THEN 0 ELSE tt.VT_wrk_tourend END AS VT_wrk_tourend,
+	CASE WHEN tt.PT_wrk_tourend IS NULL THEN 0 ELSE tt.PT_wrk_tourend END AS PT_wrk_tourend,
+	CASE WHEN tt.SOV_wrk_tourend IS NULL THEN 0 ELSE tt.SOV_wrk_tourend END AS SOV_wrk_tourend,
+	CASE WHEN tt.HOV_wrk_tourend IS NULL THEN 0 ELSE tt.HOV_wrk_tourend END AS HOV_wrk_tourend,
+	CASE WHEN tt.TRN_wrk_tourend IS NULL THEN 0 ELSE tt.TRN_wrk_tourend END AS TRN_wrk_tourend,
+	CASE WHEN tt.BIK_wrk_tourend IS NULL THEN 0 ELSE tt.BIK_wrk_tourend END AS BIK_wrk_tourend,
+	CASE WHEN tt.WLK_wrk_tourend IS NULL THEN 0 ELSE tt.WLK_wrk_tourend END AS WLK_wrk_tourend,
+	CASE WHEN tt.TNC_wrk_tourend IS NULL THEN 0 ELSE tt.TNC_wrk_tourend END AS TNC_wrk_tourend,
+	CASE WHEN tt.TRN_LBUS_RES IS NULL THEN 0 ELSE tt.TRN_LBUS_RES END AS TRN_LBUS_RES,
+	CASE WHEN tt.TRN_LRT_RES IS NULL THEN 0 ELSE tt.TRN_LRT_RES END AS TRN_LRT_RES,
+	CASE WHEN tt.TRN_EBUS_RES IS NULL THEN 0 ELSE tt.TRN_EBUS_RES END AS TRN_EBUS_RES,
+	CASE WHEN tw.VMT_WKR_NOTELWK IS NULL THEN 0 ELSE tw.VMT_WKR_NOTELWK END AS VMT_WKR_NOTELWK,
+	CASE WHEN tw.VMT_TELWKR_PART IS NULL THEN 0 ELSE tw.VMT_TELWKR_PART END AS VMT_TELWKR_PART,
+	CASE WHEN tw.VMT_TELWKR_FULL IS NULL THEN 0 ELSE tw.VMT_TELWKR_FULL END AS VMT_TELWKR_FULL,
+	CASE WHEN tw.VMT_WAHWKR IS NULL THEN 0 ELSE tw.VMT_WAHWKR END AS VMT_WAHWKR
+INTO {comb_outtbl} --combined ilut output table name
+FROM {parcel_master} pm
+	LEFT JOIN {envision_tomorrow_tbl} eto --regional envision tomorrow parcel table
+		ON pm.PARCELID = eto.PARCELID
+	LEFT JOIN {raw_parcel} pcl --raw parcel scenario table
+		ON eto.PARCELID = pcl.parcelid
+	LEFT JOIN {hh_outtbl} hh --ilut hh table
+		ON eto.PARCELID = hh.parcelid
+	LEFT JOIN {person_outtbl} pp --ilut person table
+		ON eto.PARCELID = pp.parcelid
+	LEFT JOIN {triptour_outtbl} tt --ilut triptour table
+		ON eto.PARCELID = tt.parcelid
+	LEFT JOIN {cvixxi_outtbl} ixcv --ilut ixxicveh table
+		ON eto.PARCELID = ixcv.parcelid
+	LEFT JOIN {telewk_outtbl} tw --ilut telework table
+		ON eto.PARCELID = tw.hhparcel
+
+IF OBJECT_ID('{hh_outtbl}', 'U') IS NOT NULL DROP TABLE {hh_outtbl}; --delete temp ilut hh table
+IF OBJECT_ID('{person_outtbl}', 'U') IS NOT NULL DROP TABLE {person_outtbl}; --delete temp ilut person table
+IF OBJECT_ID('{triptour_outtbl}', 'U') IS NOT NULL DROP TABLE {triptour_outtbl}; --delete temp ilut triptour table
+IF OBJECT_ID('{cvixxi_outtbl}', 'U') IS NOT NULL DROP TABLE {cvixxi_outtbl}; --delete temp ilut ixxicveh table
+IF OBJECT_ID('{telewk_outtbl}', 'U') IS NOT NULL DROP TABLE {telewk_outtbl}; --delete temp ilut telework table

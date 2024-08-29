@@ -68,7 +68,7 @@ def make_link_node_lists(in_file):
                              'TIMEFAC[4]','TIMEFAC[5]','HEADWAY[1]','HEADWAY[2]','HEADWAY[3]',
                              'HEADWAY[4]','HEADWAY[5]']
             
-            node_attrname = 'N'
+            node_attrnames = ['N', 'NODES']
             tf_attrnames = ['TF','TIMEFAC']
             
             row_dict1 = {}
@@ -83,7 +83,7 @@ def make_link_node_lists(in_file):
                         # link_row.append(attr_value)
                         row_dict1[attr_name] = attr_value
             
-                    elif attr_name == node_attrname: #for each line, the node values will be made into a list
+                    elif attr_name in node_attrnames: #for each line, the node values will be made into a list
                         firstNode = attr_value
                         aNodeList.append(firstNode)
                         tfchg_list.append(tf_change) #default aTF value is 0
@@ -213,8 +213,11 @@ def check_tranlinks(tranline_txt_file, hwylink_dbf, check_for_wrongways=False):
     # {line name: [list of nodes] if line mode != modeid_rail}
     line_nodes_dict = {}
     
+
     for row in noderows:
         line_name = row[0]
+        # if line_name == "ELDOC10_A": import pdb; pdb.set_trace()
+
         node_id = abs(int(row[1])) # must be positive number since all hwy node IDs are positive
         if line_mode_dict[line_name] != modeid_rail: # only check transit node pairs that are on bus lines, which use hwy net
             if line_nodes_dict.get(line_name) is None:
@@ -254,12 +257,16 @@ def check_tranlinks(tranline_txt_file, hwylink_dbf, check_for_wrongways=False):
 #======================RUN SCRIPT============================================
 
 if __name__ == '__main__':
-    tranline_in = r"Q:\SACSIM23\Network\Cube\TransitLIN\pa35_tranline_TAZ21.lin" 
-    network_links_dbf = r"Q:\SACSIM23\Network\SM23GIS\DBF\masterSM23_20210930_test.dbf"
+    tranline_in = input("Enter path to transit line file: ").strip("\"")
+    network_links_dbf = input("Enter path to hwy network link DBF file: ").strip("\"")
+    output_csv_dir = input("Enter path to output folder: ").strip("\"")
+    flag_wrong_ways = bool(input("Do you want to flag links where transit routes are going the wrong way (leave blank if no)? "))
 
-    output_csv_dir = r"Q:\SACSIM23\Network\Temp"
-
-    flag_wrong_ways = False
+    # hard-code vals for testing
+    # tranline_in = r"\\WIN10-Model-5\D\SACSIM23\2035\run_2035_base_test_v1\2035_tranline.lin" 
+    # network_links_dbf = r"\\WIN10-Model-5\D\SACSIM23\2035\run_2035_base_test_v1\2035_base_links.dbf"
+    # output_csv_dir = r"\\WIN10-Model-5\D\SACSIM23\2035\run_2035_base_test_v1"
+    # flag_wrong_ways = False
     
     # ===================BEGIN SCRIPT=================================
     date_sufx = str(dt.datetime.now().strftime('%m%d%Y_%H%M'))
